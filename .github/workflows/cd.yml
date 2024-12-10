@@ -44,7 +44,5 @@ jobs:
             DATABASE_TYPE=${{ matrix.db-type }}
             BASE_PATH=${{ github.event.inputs.base_path || '/umami' }}
           registry: ghcr.io
-          multiPlatform: true
-          platform: linux/amd64,linux/arm64
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
