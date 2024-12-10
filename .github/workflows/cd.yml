@@ -1,16 +1,24 @@
-name: Create docker images
+name: Create docker image
 
-on: [create]
+on:
+  create:  # Keep existing trigger
+  workflow_dispatch:  # Add manual trigger
+    inputs:
+      base_path:
+        description: 'Base path for the application (e.g., /umami)'
+        required: false
+        default: '/umami'
+        type: string
 
 jobs:
   build:
     name: Build, push, and deploy
-    if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+    if: ${{ startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
 
     strategy:
       matrix:
-        db-type: [postgresql, mysql]
+        db-type: [postgresql]
 
     steps:
       - uses: actions/checkout@v3
@@ -18,7 +26,7 @@ jobs:
       - name: Set env
         run: |
           echo "NOW=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_ENV
-          
+
       - name: Generate tags
         id: generate_tags
         run: |
@@ -32,19 +40,11 @@ jobs:
         with:
           image: umami
           tags: ${{ env.tag_major }}, ${{ env.tag_minor }}, ${{ env.tag_patch }}, ${{ env.tag_latest }}
-          buildArgs: DATABASE_TYPE=${{ matrix.db-type }}
+          buildArgs: |
+            DATABASE_TYPE=${{ matrix.db-type }}
+            BASE_PATH=${{ github.event.inputs.base_path || '/umami' }}
           registry: ghcr.io
           multiPlatform: true
           platform: linux/amd64,linux/arm64
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
-      - uses: mr-smithers-excellent/docker-build-push@v6
-        name: Build & push Docker image to docker.io for ${{ matrix.db-type }}
-        with:
-          image: umamisoftware/umami
-          tags: ${{ env.tag_major }}, ${{ env.tag_minor }}, ${{ env.tag_patch }}, ${{ env.tag_latest }}
-          buildArgs: DATABASE_TYPE=${{ matrix.db-type }}
-          registry: docker.io
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
